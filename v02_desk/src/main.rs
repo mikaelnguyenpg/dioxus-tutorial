@@ -1,4 +1,5 @@
 use dioxus::prelude::*;
+use serde::Serialize;
 
 const FAVICON: Asset = asset!("/assets/favicon.ico");
 const MAIN_CSS: Asset = asset!("/assets/main.css");
@@ -27,12 +28,7 @@ fn App() -> Element {
 
         div { class: "test-section",
             h2 { "2.B Canvas Test 2 (HTML5 Canvas Points)" }
-            CanvasExample2 {}
-        }
-
-        div { class: "test-section",
-            h2 { "2.C Canvas Test 3 (HTML5 Canvas Points Continuously)" }
-            CanvasExample3 {}
+            CanvasExample5 {}
         }
     }
 }
@@ -262,7 +258,7 @@ fn CanvasExample3() -> Element {
             // Tiêu đề
             ctx.fillStyle = '#e2e8f0';
             ctx.font = 'bold 22px Arial';
-            ctx.fillText('CanvasExample3 - 1000 Animated Points', 20, 40);
+            ctx.fillText('CanvasExample3 - 10000 Animated Points', 20, 40);
             
             ctx.font = '16px Arial';
             ctx.fillStyle = '#94a3b8';
@@ -297,3 +293,221 @@ fn CanvasExample3() -> Element {
         }
     }
 }
+
+#[derive(Clone, Serialize)]
+struct Point {
+    x: f32,
+    y: f32,
+    r: f32,
+}
+
+fn generate_points(num: usize, frame: u32, width: f32, height: f32) -> Vec<Point> {
+    let mut points = Vec::with_capacity(num);
+
+    for i in 0..num {
+        let x = ( (i as f32 * 0.1 + frame as f32).sin() * 200.0 + width / 2.0 )
+            + (rand::random::<f32>() * 80.0 - 40.0);
+
+        let y = ( (i as f32 * 0.08 + frame as f32 * 1.3).cos() * 140.0 + height / 2.0 )
+            + (rand::random::<f32>() * 60.0 - 30.0);
+
+        let r = rand::random::<f32>() * 2.5 + 1.2;
+
+        points.push(Point { x, y, r });
+    }
+
+    points
+}
+
+#[component]
+fn CanvasExample4() -> Element {
+    let mut num_points: usize = 5000;
+    let mut frame = use_signal(|| 0u32);
+
+    use_effect(|| {
+        dioxus::document::eval(r#"
+            window.points = [];
+            window.renderPoints = function() {
+                const canvas = document.getElementById('animation-canvas');
+                const ctx = canvas.getContext("2d");
+
+                ctx.fillStyle = 'rgba(15,23,42,0.15)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillText('{num_points} Random Points', 20, 35);
+
+                ctx.fillStyle = '#60a5fa';
+
+                for (let i = 0; i < window.points.length; i++) {
+                    const p = window.points[i];
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Tiêu đề
+                ctx.fillStyle = '#e2e8f0';
+                ctx.font = 'bold 22px Arial';
+                ctx.fillText('CanvasExample4 - {num_points} Animated Points', 20, 40);
+                
+                ctx.font = '16px Arial';
+                ctx.fillStyle = '#94a3b8';
+                ctx.fillText('Real-time animation with Dioxus Desktop', 20, 370);
+            };
+        "#);
+    });
+
+    // Animation loop
+    use_effect(move || {
+        let current_frame = frame();
+
+        let points = generate_points(num_points, current_frame, 600.0, 400.0);
+        let json = serde_json::to_string(&points).unwrap();
+
+        let script = format!(
+            r#"
+            window.points = {};
+            window.renderPoints();
+            "#,
+            json
+        );
+
+        dioxus::document::eval(&script);
+
+        // Tăng frame để tạo animation
+        spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(30)).await; // ~33 FPS
+            frame.set(current_frame + 1);
+        });
+    });
+
+    rsx! {
+        div {
+            h2 { "CanvasExample4: {num_points} Animated Points" }
+
+            canvas {
+                id: "animation-canvas",
+                width: "600",
+                height: "400",
+                style: "border: 2px solid #334155; border-radius: 12px; background: #0f172a;"
+            }
+
+            p { style: "color: #64748b; margin-top: 8px;",
+                "Đang chạy animation realtime (~33 FPS)"
+            }
+        }
+    }
+}
+
+fn generate_points_buffer(num: usize, frame: u32, width: f32, height: f32) -> Vec<f32> {
+    let mut buf = Vec::with_capacity(num * 3);
+
+    for i in 0..num {
+        let x = ((i as f32 * 0.1 + frame as f32).sin() * 200.0 + width / 2.0)
+            + (rand::random::<f32>() * 80.0 - 40.0);
+
+        let y = ((i as f32 * 0.08 + frame as f32 * 1.3).cos() * 140.0 + height / 2.0)
+            + (rand::random::<f32>() * 60.0 - 30.0);
+
+        let r = rand::random::<f32>() * 2.5 + 1.2;
+
+        buf.push(x);
+        buf.push(y);
+        buf.push(r);
+    }
+
+    buf
+}
+
+fn buffer_to_string(buf: &[f32]) -> String {
+    buf.iter()
+        .map(|v| v.to_string())
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
+#[component]
+fn CanvasExample5() -> Element {
+    let mut num_points: usize = 20000;
+    let mut frame = use_signal(|| 0u32);
+
+    use_effect(|| {
+        dioxus::document::eval(r#"
+            window.points = [];
+            window.renderPoints = function() {
+                const canvas = document.getElementById('animation-canvas');
+                const ctx = canvas.getContext("2d");
+
+                ctx.fillStyle = 'rgba(15,23,42,0.15)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillText('{num_points} Random Points', 20, 35);
+
+                ctx.fillStyle = '#60a5fa';
+
+                const data = window.points;
+
+                for (let i = 0; i < data.length; i += 3) {
+                    const x = data[i];
+                    const y = data[i + 1];
+                    const r = data[i + 2];
+
+                    ctx.beginPath();
+                    ctx.arc(x, y, r, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Tiêu đề
+                ctx.fillStyle = '#e2e8f0';
+                ctx.font = 'bold 22px Arial';
+                ctx.fillText('CanvasExample5 - {num_points} Animated Points', 20, 40);
+                
+                ctx.font = '16px Arial';
+                ctx.fillStyle = '#94a3b8';
+                ctx.fillText('Real-time animation with Dioxus Desktop', 20, 370);
+            };
+        "#);
+    });
+
+    // Animation loop
+    use_effect(move || {
+        let current_frame = frame();
+
+        let buf = generate_points_buffer(num_points, current_frame, 600.0, 400.0);
+
+        let data_str = buffer_to_string(&buf);
+
+        let script = format!(
+            r#"
+            const raw = "{}".split(',').map(Number);
+            window.points = new Float32Array(raw);
+            window.renderPoints();
+            "#,
+            data_str
+        );
+
+        dioxus::document::eval(&script);
+
+        // Tăng frame để tạo animation
+        spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(30)).await; // ~33 FPS
+            frame.set(current_frame + 1);
+        });
+    });
+
+    rsx! {
+        div {
+            h2 { "CanvasExample5: {num_points} Animated Points" }
+
+            canvas {
+                id: "animation-canvas",
+                width: "600",
+                height: "400",
+                style: "border: 2px solid #334155; border-radius: 12px; background: #0f172a;"
+            }
+
+            p { style: "color: #64748b; margin-top: 8px;",
+                "Đang chạy animation realtime (~33 FPS)"
+            }
+        }
+    }
+}
+
