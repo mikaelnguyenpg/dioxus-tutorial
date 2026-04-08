@@ -43,4 +43,23 @@ body {
 }
 
 
+/* ==================== CANVAS/SVG TEST ==================== */
+.container {
+    padding: 20px;
+    font-family: system-ui, sans-serif;
+}
 
+.test-section {
+    margin: 30px 0;
+    padding: 20px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #f9fafb;
+}
+
+.svg-test {
+    display: flex;
+    gap: 40px;
+    align-items: center;
+    flex-wrap: wrap;
+}
