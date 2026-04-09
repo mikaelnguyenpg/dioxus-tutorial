@@ -20,3 +20,22 @@ cd NAME && dx serve
 # Check project
 cd NAME && cargo check
 ```
+
+## Insight
+
+- Methods:
+
+```plaintext
+Method 1 — Inline JS Rendering
+Method 2 — JSON Object Serialization
+Method 3 — Flat Buffer String
+Method 4 — Base64 Binary Buffer
+Method 5 — Uint8Array Literal (pseudo zero-copy)
+Tier 2 — Zero-copy / Low-overhead transport
+  6. WASM Shared Memory
+  7. Binary IPC (Tauri)
+Tier 3 — GPU Rendering
+  8. WebGL
+  9. WebGPU
+  10. wgpu (Rust native GPU)
+```
